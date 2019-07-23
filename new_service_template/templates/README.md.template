@@ -1,0 +1,39 @@
+# Device <<<DS_CAMEL_CASE_NAME>>> Go
+<<<DS_CAMEL_CASE_NAME>>> device service go version
+
+## Requisite
+* core-data
+* core-metadata
+* core-command
+
+## Predefined configuration
+
+### Device list
+Define devices info for device-sdk to auto upload device profile and create device instance. Please modify `configuration.toml` file which under `./cmd/res` folder
+
+**<<<DS_CAMEL_CASE_NAME>>> TCP**
+```toml
+[[DeviceList]]
+  Name = "<<<DS_CAMEL_CASE_NAME>>> TCP test device"
+  Profile = "Test.Device.<<<DS_CAMEL_CASE_NAME>>>.Profile"
+  Description = "This device is a product for ....."
+  labels = [ "TCP" ]
+  [DeviceList.Protocols]
+    [DeviceList.Protocols.tcp]
+       Address = "127.0.0.q"
+       Port = "9999"
+       UnitID = "1"
+```
+
+## Installation and Execution
+```bash
+make prepare
+make build
+make run
+```
+
+
+## build image
+```bash
+docker build -t edgexfoundry/docker-device-<<<DS_NAME>>>-go:0.1.0 .
+```

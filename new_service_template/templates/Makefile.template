@@ -1,0 +1,35 @@
+.PHONY: build test clean prepare update docker
+
+GO=CGO_ENABLED=0 GO111MODULE=on go
+
+MICROSERVICES=cmd/device-<<<DS_NAME>>>
+
+.PHONY: $(MICROSERVICES)
+
+DOCKERS=docker_device_<<<DS_NAME>>>_go
+.PHONY: $(DOCKERS)
+
+VERSION=$(shell cat ./VERSION)
+GIT_SHA=$(shell git rev-parse HEAD)
+GOFLAGS=-ldflags "-X github.com/edgexfoundry/device-<<<DS_NAME>>>-go.Version=$(VERSION)"
+
+build: $(MICROSERVICES)
+	$(GO) build ./...
+
+cmd/device-<<<DS_NAME>>>:
+	$(GO) build $(GOFLAGS) -o $@ ./cmd
+
+test:
+	$(GO) test ./... -cover
+
+clean:
+	rm -f $(MICROSERVICES)
+
+docker: $(DOCKERS)
+
+docker_device_<<<DS_NAME>>>_go:
+	docker build \
+		--label "git_sha=$(GIT_SHA)" \
+		-t edgexfoundry/docker-device-<<<DS_NAME>>>-go:$(GIT_SHA) \
+		-t edgexfoundry/docker-device-<<<DS_NAME>>>-go:$(VERSION)-dev \
+		.
