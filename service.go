@@ -46,6 +46,7 @@ type Service struct {
 	cw           *Watchers
 	asyncCh      chan *dsModels.AsyncValues
 	startTime    time.Time
+	controller   controller.RestController
 }
 
 // Name returns the name of this Device Service
@@ -85,8 +86,29 @@ func (s *Service) Start(errChan chan error) (err error) {
 		return fmt.Errorf("Couldn't register to metadata service")
 	}
 
-	// initialize devices, objects & profiles
+	// initialize devices, deviceResources & profiles
 	cache.InitCache()
+
+	// Setup REST API.
+	// Must occur before initialize driver in case driver needs to add route(s)
+	s.controller = controller.NewRestController()
+	s.controller.InitRestRoutes()
+	common.LoggingClient.Info(fmt.Sprintf("*Service Start() called, name=%s, version=%s", common.ServiceName, common.ServiceVersion))
+	go func() {
+		errChan <- http.ListenAndServe(common.Colon+strconv.Itoa(s.svcInfo.Port), s.controller.Router())
+	}()
+	common.LoggingClient.Info("Listening on port: " + strconv.Itoa(common.CurrentConfig.Service.Port))
+
+	// initialize driver
+	if common.CurrentConfig.Service.EnableAsyncReadings {
+		s.asyncCh = make(chan *dsModels.AsyncValues, common.CurrentConfig.Service.AsyncBufferSize)
+		go processAsyncResults()
+	}
+	err = common.Driver.Initialize(common.LoggingClient, s.asyncCh)
+	if err != nil {
+		return fmt.Errorf("Driver.Initialize failure: %v", err)
+	}
+
 	err = provision.LoadProfiles(common.CurrentConfig.Device.ProfilesDir)
 	if err != nil {
 		return fmt.Errorf("Failed to create the pre-defined Device Profiles")
@@ -99,36 +121,18 @@ func (s *Service) Start(errChan chan error) (err error) {
 
 	s.cw = newWatchers()
 
-	// initialize driver
-	if common.CurrentConfig.Service.EnableAsyncReadings {
-		s.asyncCh = make(chan *dsModels.AsyncValues, common.CurrentConfig.Service.AsyncBufferSize)
-		go processAsyncResults()
-	}
-	err = common.Driver.Initialize(common.LoggingClient, s.asyncCh)
-	if err != nil {
-		return fmt.Errorf("Driver.Initialize failure: %v", err)
-	}
-
-	// Setup REST API
-	r := controller.InitRestRoutes()
-
 	autoevent.GetManager().StartAutoEvents()
 	http.TimeoutHandler(nil, time.Millisecond*time.Duration(s.svcInfo.Timeout), "Request timed out")
 
-	// TODO: call ListenAndServe in a goroutine
-
-	common.LoggingClient.Info(fmt.Sprintf("*Service Start() called, name=%s, version=%s", common.ServiceName, common.ServiceVersion))
-
-	go func() {
-		errChan <- http.ListenAndServe(common.Colon+strconv.Itoa(s.svcInfo.Port), r)
-	}()
-
-	common.LoggingClient.Info("Listening on port: " + strconv.Itoa(common.CurrentConfig.Service.Port))
 	common.LoggingClient.Info("Service started in: " + time.Since(s.startTime).String())
-
 	common.LoggingClient.Debug("*Service Start() exit")
 
 	return err
+}
+
+// AddRoute allows leveraging the existing internal webserver to add routes specific to Device Service.
+func (s *Service) AddRoute(route string, handler func(http.ResponseWriter, *http.Request), methods ...string) error {
+	return s.controller.AddRoute(route, handler, methods...)
 }
 
 func selfRegister() error {
@@ -138,7 +142,7 @@ func selfRegister() error {
 	ds, err := common.DeviceServiceClient.DeviceServiceForName(common.ServiceName, ctx)
 
 	if err != nil {
-		if errsc, ok := err.(*types.ErrServiceClient); ok && (errsc.StatusCode == http.StatusNotFound) {
+		if errsc, ok := err.(types.ErrServiceClient); ok && (errsc.StatusCode == http.StatusNotFound) {
 			common.LoggingClient.Info(fmt.Sprintf("Device Service %s doesn't exist, creating a new one", ds.Name))
 			ds, err = createNewDeviceService()
 		} else {
@@ -181,7 +185,7 @@ func createNewDeviceService() (contract.DeviceService, error) {
 		return contract.DeviceService{}, err
 	}
 
-	// NOTE - this differs from Addressable and Device objects,
+	// NOTE - this differs from Addressable and Device Resources,
 	// neither of which require the '.Service'prefix
 	ds.Id = id
 	common.LoggingClient.Debug("New deviceservice Id: " + ds.Id)
@@ -194,7 +198,7 @@ func makeNewAddressable() (*contract.Addressable, error) {
 	ctx := context.WithValue(context.Background(), common.CorrelationHeader, uuid.New().String())
 	addr, err := common.AddressableClient.AddressableForName(common.ServiceName, ctx)
 	if err != nil {
-		if errsc, ok := err.(*types.ErrServiceClient); ok && (errsc.StatusCode == http.StatusNotFound) {
+		if errsc, ok := err.(types.ErrServiceClient); ok && (errsc.StatusCode == http.StatusNotFound) {
 			common.LoggingClient.Info(fmt.Sprintf("Addressable %s doesn't exist, creating a new one", common.ServiceName))
 			millis := time.Now().UnixNano() / int64(time.Millisecond)
 			addr = contract.Addressable{
@@ -234,6 +238,13 @@ func (s *Service) Stop(force bool) error {
 	common.Driver.Stop(force)
 	autoevent.GetManager().StopAutoEvents()
 	return nil
+}
+
+// SetOverwriteConfig sets whether or not configuration will be unconditionally loaded
+// from file to the registry.
+// NOTE this will be removed in the next release and made a parameter to NewService
+func SetOverwriteConfig(oc bool) {
+	common.OverwriteConfig = oc
 }
 
 // NewService creates a new Device Service instance with the given

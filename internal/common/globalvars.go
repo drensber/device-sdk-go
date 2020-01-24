@@ -9,6 +9,7 @@ package common
 import (
 	dsModels "github.com/edgexfoundry/device-sdk-go/pkg/models"
 	"github.com/edgexfoundry/go-mod-core-contracts/clients/coredata"
+	"github.com/edgexfoundry/go-mod-core-contracts/clients/general"
 	"github.com/edgexfoundry/go-mod-core-contracts/clients/logger"
 	"github.com/edgexfoundry/go-mod-core-contracts/clients/metadata"
 	contract "github.com/edgexfoundry/go-mod-core-contracts/models"
@@ -20,6 +21,7 @@ var (
 	CurrentConfig         *Config
 	CurrentDeviceService  contract.DeviceService
 	UseRegistry           bool
+	OverwriteConfig       bool
 	ServiceLocked         bool
 	Driver                dsModels.ProtocolDriver
 	EventClient           coredata.EventClient
@@ -29,4 +31,5 @@ var (
 	DeviceProfileClient   metadata.DeviceProfileClient
 	LoggingClient         logger.LoggingClient
 	ValueDescriptorClient coredata.ValueDescriptorClient
+	MetadataGeneralClient general.GeneralClient
 )

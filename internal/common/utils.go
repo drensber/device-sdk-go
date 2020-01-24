@@ -11,7 +11,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -80,6 +82,14 @@ func SendEvent(event *dsModels.Event) {
 	if errPost != nil {
 		LoggingClient.Error("SendEvent Failed to push event", "device", event.Device, "response", responseBody, "error", errPost)
 	} else {
+		if CurrentConfig.Device.UpdateLastConnected {
+			t := time.Now().UnixNano() / int64(time.Millisecond)
+			err = DeviceClient.UpdateLastConnectedByName(event.Device, t, ctx)
+			if err != nil {
+				LoggingClient.Error(fmt.Sprintf("Error updating device's lastConnected attribute: %v", err))
+			}
+		}
+
 		LoggingClient.Info("SendEvent: Pushed event to core data", clients.ContentType, clients.FromContext(clients.ContentType, ctx), clients.CorrelationHeader, correlation)
 		LoggingClient.Trace("SendEvent: Pushed this event to core data", clients.ContentType, clients.FromContext(clients.ContentType, ctx), clients.CorrelationHeader, correlation, "event", event)
 	}
@@ -122,8 +132,8 @@ func CompareDeviceProfiles(a contract.DeviceProfile, b contract.DeviceProfile) b
 	devResourcesOk := CompareDeviceResources(a.DeviceResources, b.DeviceResources)
 	resourcesOk := CompareDeviceCommands(a.DeviceCommands, b.DeviceCommands)
 
-	// TODO: Objects fields aren't compared as to dr properly
-	// requires introspection as Obects is a slice of interface{}
+	// TODO: DeviceResource fields aren't compared as to dr properly
+	// requires introspection as DeviceResource is a slice of interface{}
 
 	return a.DescribedObject == b.DescribedObject &&
 		a.Id == b.Id &&
@@ -189,9 +199,9 @@ func CompareResourceOperations(a []contract.ResourceOperation, b []contract.Reso
 
 		if a[i].Index != b[i].Index ||
 			a[i].Operation != b[i].Operation ||
-			a[i].Object != b[i].Object ||
+			a[i].DeviceResource != b[i].DeviceResource ||
 			a[i].Parameter != b[i].Parameter ||
-			a[i].Resource != b[i].Resource ||
+			a[i].DeviceCommand != b[i].DeviceCommand ||
 			!secondaryOk ||
 			!mappingsOk {
 			return false
@@ -260,4 +270,19 @@ func GetUniqueOrigin() int64 {
 	}
 	previousOrigin = now
 	return now
+}
+
+func FilterQueryParams(queryParams string) url.Values {
+	m, err := url.ParseQuery(queryParams)
+	if err != nil {
+		LoggingClient.Error("Error parsing query parameters: %s\n", err)
+	}
+	// Filter out parameters with predefined prefix
+	for k, _ := range m {
+		if strings.HasPrefix(k, SDKReservedPrefix) {
+			delete(m, k)
+		}
+	}
+
+	return m
 }

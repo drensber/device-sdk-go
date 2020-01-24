@@ -5,7 +5,7 @@ GO=CGO_ENABLED=0 GO111MODULE=on go
 MICROSERVICES=example/cmd/device-simple/device-simple
 .PHONY: $(MICROSERVICES)
 
-VERSION=$(shell cat ./VERSION)
+VERSION=$(shell cat ./VERSION 2>/dev/null || echo 0.0.0)
 
 GOFLAGS=-ldflags "-X github.com/edgexfoundry/device-sdk-go.Version=$(VERSION)"
 
@@ -26,9 +26,12 @@ docker:
 		.
 
 test:
+	$(GO) test -coverprofile=coverage.out ./...
 	$(GO) vet ./...
 	gofmt -l .
-	$(GO) test -coverprofile=coverage.out ./...
+	[ "`gofmt -l .`" = "" ]
+	./bin/test-attribution-txt.sh
+	./bin/test-go-mod-tidy.sh
 
 clean:
 	rm -f $(MICROSERVICES)

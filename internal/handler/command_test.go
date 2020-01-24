@@ -23,34 +23,19 @@ import (
 )
 
 const (
-	profileNameRandomBooleanGenerator         = "Random-Boolean-Generator"
-	profileNameRandomIntegerGenerator         = "Random-Integer-Generator"
-	profileNameRandomUnsignedIntegerGenerator = "Random-UnsignedInteger-Generator"
-	profileNameRandomFloatGenerator           = "Random-Float-Generator"
-	methodGet                                 = "get"
-	methodSet                                 = "set"
-	typeBool                                  = "Bool"
-	typeInt8                                  = "Int8"
-	typeInt16                                 = "Int16"
-	typeInt32                                 = "Int32"
-	typeInt64                                 = "Int64"
-	typeUint8                                 = "Uint8"
-	typeUint16                                = "Uint16"
-	typeUint32                                = "Uint32"
-	typeUint64                                = "Uint64"
-	typeFloat32                               = "Float32"
-	typeFloat64                               = "Float64"
-	resourceObjectBool                        = "RandomValue_Bool"
-	resourceObjectInt8                        = "RandomValue_Int8"
-	resourceObjectInt16                       = "RandomValue_Int16"
-	resourceObjectInt32                       = "RandomValue_Int32"
-	resourceObjectInt64                       = "RandomValue_Int64"
-	resourceObjectUint8                       = "RandomValue_Uint8"
-	resourceObjectUint16                      = "RandomValue_Uint16"
-	resourceObjectUint32                      = "RandomValue_Uint32"
-	resourceObjectUint64                      = "RandomValue_Uint64"
-	resourceObjectFloat32                     = "RandomValue_Float32"
-	resourceObjectFloat64                     = "RandomValue_Float64"
+	methodGet   = "get"
+	methodSet   = "set"
+	typeBool    = "Bool"
+	typeInt8    = "Int8"
+	typeInt16   = "Int16"
+	typeInt32   = "Int32"
+	typeInt64   = "Int64"
+	typeUint8   = "Uint8"
+	typeUint16  = "Uint16"
+	typeUint32  = "Uint32"
+	typeUint64  = "Uint64"
+	typeFloat32 = "Float32"
+	typeFloat64 = "Float64"
 )
 
 var (
@@ -71,17 +56,17 @@ func init() {
 	common.Driver = &mock.DriverMock{}
 	cache.InitCache()
 	pc = cache.Profiles()
-	operationSetBool, _ = pc.ResourceOperation(profileNameRandomBooleanGenerator, resourceObjectBool, methodSet)
-	operationSetInt8, _ = pc.ResourceOperation(profileNameRandomIntegerGenerator, resourceObjectInt8, methodSet)
-	operationSetInt16, _ = pc.ResourceOperation(profileNameRandomIntegerGenerator, resourceObjectInt16, methodSet)
-	operationSetInt32, _ = pc.ResourceOperation(profileNameRandomIntegerGenerator, resourceObjectInt32, methodSet)
-	operationSetInt64, _ = pc.ResourceOperation(profileNameRandomIntegerGenerator, resourceObjectInt64, methodSet)
-	operationSetUint8, _ = pc.ResourceOperation(profileNameRandomUnsignedIntegerGenerator, resourceObjectUint8, methodSet)
-	operationSetUint16, _ = pc.ResourceOperation(profileNameRandomUnsignedIntegerGenerator, resourceObjectUint16, methodSet)
-	operationSetUint32, _ = pc.ResourceOperation(profileNameRandomUnsignedIntegerGenerator, resourceObjectUint32, methodSet)
-	operationSetUint64, _ = pc.ResourceOperation(profileNameRandomUnsignedIntegerGenerator, resourceObjectUint64, methodSet)
-	operationSetFloat32, _ = pc.ResourceOperation(profileNameRandomFloatGenerator, resourceObjectFloat32, methodSet)
-	operationSetFloat64, _ = pc.ResourceOperation(profileNameRandomFloatGenerator, resourceObjectFloat64, methodSet)
+	operationSetBool, _ = pc.ResourceOperation(mock.ProfileBool, mock.ResourceObjectBool, methodSet)
+	operationSetInt8, _ = pc.ResourceOperation(mock.ProfileInt, mock.ResourceObjectInt8, methodSet)
+	operationSetInt16, _ = pc.ResourceOperation(mock.ProfileInt, mock.ResourceObjectInt16, methodSet)
+	operationSetInt32, _ = pc.ResourceOperation(mock.ProfileInt, mock.ResourceObjectInt32, methodSet)
+	operationSetInt64, _ = pc.ResourceOperation(mock.ProfileInt, mock.ResourceObjectInt64, methodSet)
+	operationSetUint8, _ = pc.ResourceOperation(mock.ProfileUint, mock.ResourceObjectUint8, methodSet)
+	operationSetUint16, _ = pc.ResourceOperation(mock.ProfileUint, mock.ResourceObjectUint16, methodSet)
+	operationSetUint32, _ = pc.ResourceOperation(mock.ProfileUint, mock.ResourceObjectUint32, methodSet)
+	operationSetUint64, _ = pc.ResourceOperation(mock.ProfileUint, mock.ResourceObjectUint64, methodSet)
+	operationSetFloat32, _ = pc.ResourceOperation(mock.ProfileFloat, mock.ResourceObjectFloat32, methodSet)
+	operationSetFloat64, _ = pc.ResourceOperation(mock.ProfileFloat, mock.ResourceObjectFloat64, methodSet)
 
 	ctx := context.WithValue(context.Background(), common.CorrelationHeader, uuid.New().String())
 	ds, _ = common.DeviceClient.DevicesForServiceByName(common.ServiceName, ctx)
@@ -89,14 +74,15 @@ func init() {
 
 	deviceInfo := common.DeviceInfo{DataTransform: true, MaxCmdOps: 128}
 	common.CurrentConfig = &common.Config{Device: deviceInfo}
+	common.LoggingClient = logger.NewClient("command_test", false, "./device-simple.log", "INFO")
 }
 
 func TestParseWriteParamsWrongParamName(t *testing.T) {
 	profileName := "notFound"
-	roMap := roSliceToMap([]contract.ResourceOperation{{Index: ""}})
+	ro := []contract.ResourceOperation{{Index: ""}}
 	params := "{ \"key\": \"value\" }"
 
-	_, err := parseWriteParams(profileName, roMap, params)
+	_, err := parseWriteParams(profileName, ro, params)
 
 	if err == nil {
 		t.Error("expected error")
@@ -105,10 +91,10 @@ func TestParseWriteParamsWrongParamName(t *testing.T) {
 
 func TestParseWriteParamsNoParams(t *testing.T) {
 	profileName := "notFound"
-	roMap := roSliceToMap([]contract.ResourceOperation{{Index: ""}})
+	ro := []contract.ResourceOperation{{Index: ""}}
 	params := "{ }"
 
-	_, err := parseWriteParams(profileName, roMap, params)
+	_, err := parseWriteParams(profileName, ro, params)
 
 	if err == nil {
 		t.Error("expected error")
@@ -150,49 +136,49 @@ func TestCreateCommandValueForParam(t *testing.T) {
 		parseCheck  dsModels.ValueType
 		expectErr   bool
 	}{
-		{"DeviceResourceNotFound", profileNameRandomBooleanGenerator, typeBool, &contract.ResourceOperation{}, "", dsModels.Bool, true},
-		{"BoolTruePass", profileNameRandomBooleanGenerator, typeBool, &operationSetBool, "true", dsModels.Bool, false},
-		{"BoolFalsePass", profileNameRandomBooleanGenerator, typeBool, &operationSetBool, "false", dsModels.Bool, false},
-		{"BoolTrueFail", profileNameRandomBooleanGenerator, typeBool, &operationSetBool, "error", dsModels.Bool, true},
-		{"Int8Pass", profileNameRandomIntegerGenerator, typeInt8, &operationSetInt8, "12", dsModels.Int8, false},
-		{"Int8NegativePass", profileNameRandomIntegerGenerator, typeInt8, &operationSetInt8, "-12", dsModels.Int8, false},
-		{"Int8WordFail", profileNameRandomIntegerGenerator, typeInt8, &operationSetInt8, "hello", dsModels.Int8, true},
-		{"Int8OverflowFail", profileNameRandomIntegerGenerator, typeInt8, &operationSetInt8, "9999999999", dsModels.Int8, true},
-		{"Int16Pass", profileNameRandomIntegerGenerator, typeInt16, &operationSetInt16, "12", dsModels.Int16, false},
-		{"Int16NegativePass", profileNameRandomIntegerGenerator, typeInt16, &operationSetInt16, "-12", dsModels.Int16, false},
-		{"Int16WordFail", profileNameRandomIntegerGenerator, typeInt16, &operationSetInt16, "hello", dsModels.Int16, true},
-		{"Int16OverflowFail", profileNameRandomIntegerGenerator, typeInt16, &operationSetInt16, "9999999999", dsModels.Int16, true},
-		{"Int32Pass", profileNameRandomIntegerGenerator, typeInt32, &operationSetInt32, "12", dsModels.Int32, false},
-		{"Int32NegativePass", profileNameRandomIntegerGenerator, typeInt32, &operationSetInt32, "-12", dsModels.Int32, false},
-		{"Int32WordFail", profileNameRandomIntegerGenerator, typeInt32, &operationSetInt32, "hello", dsModels.Int32, true},
-		{"Int32OverflowFail", profileNameRandomIntegerGenerator, typeInt32, &operationSetInt32, "9999999999", dsModels.Int32, true},
-		{"Int64Pass", profileNameRandomIntegerGenerator, typeInt64, &operationSetInt64, "12", dsModels.Int64, false},
-		{"Int64NegativePass", profileNameRandomIntegerGenerator, typeInt64, &operationSetInt64, "-12", dsModels.Int64, false},
-		{"Int64WordFail", profileNameRandomIntegerGenerator, typeInt64, &operationSetInt64, "hello", dsModels.Int64, true},
-		{"Int64OverflowFail", profileNameRandomIntegerGenerator, typeInt64, &operationSetInt64, "99999999999999999999", dsModels.Int64, true},
-		{"Uint8Pass", profileNameRandomUnsignedIntegerGenerator, typeUint8, &operationSetUint8, "12", dsModels.Uint8, false},
-		{"Uint8NegativeFail", profileNameRandomUnsignedIntegerGenerator, typeUint8, &operationSetUint8, "-12", dsModels.Uint8, true},
-		{"Uint8WordFail", profileNameRandomUnsignedIntegerGenerator, typeUint8, &operationSetUint8, "hello", dsModels.Uint8, true},
-		{"Uint8OverflowFail", profileNameRandomUnsignedIntegerGenerator, typeUint8, &operationSetUint8, "9999999999", dsModels.Uint8, true},
-		{"Uint16Pass", profileNameRandomUnsignedIntegerGenerator, typeUint16, &operationSetUint16, "12", dsModels.Uint16, false},
-		{"Uint16NegativeFail", profileNameRandomUnsignedIntegerGenerator, typeUint16, &operationSetUint16, "-12", dsModels.Uint16, true},
-		{"Uint16WordFail", profileNameRandomUnsignedIntegerGenerator, typeUint16, &operationSetUint16, "hello", dsModels.Uint16, true},
-		{"Uint16OverflowFail", profileNameRandomUnsignedIntegerGenerator, typeUint16, &operationSetUint16, "9999999999", dsModels.Uint16, true},
-		{"Uint32Pass", profileNameRandomUnsignedIntegerGenerator, typeUint32, &operationSetUint32, "12", dsModels.Uint32, false},
-		{"Uint32NegativeFail", profileNameRandomUnsignedIntegerGenerator, typeUint32, &operationSetUint32, "-12", dsModels.Uint32, true},
-		{"Uint32WordFail", profileNameRandomUnsignedIntegerGenerator, typeUint32, &operationSetUint32, "hello", dsModels.Uint32, true},
-		{"Uint32OverflowFail", profileNameRandomUnsignedIntegerGenerator, typeUint32, &operationSetUint32, "9999999999", dsModels.Uint32, true},
-		{"Uint64Pass", profileNameRandomUnsignedIntegerGenerator, typeUint64, &operationSetUint64, "12", dsModels.Uint64, false},
-		{"Uint64NegativeFail", profileNameRandomUnsignedIntegerGenerator, typeUint64, &operationSetUint64, "-12", dsModels.Uint64, true},
-		{"Uint64WordFail", profileNameRandomUnsignedIntegerGenerator, typeUint64, &operationSetUint64, "hello", dsModels.Uint64, true},
-		{"Uint64OverflowFail", profileNameRandomUnsignedIntegerGenerator, typeUint64, &operationSetUint64, "99999999999999999999", dsModels.Uint64, true},
-		{"Float32Pass", profileNameRandomFloatGenerator, typeFloat32, &operationSetFloat32, "12.000", dsModels.Float32, false},
-		{"Float32PassNegativePass", profileNameRandomFloatGenerator, typeFloat32, &operationSetFloat32, "-12.000", dsModels.Float32, false},
-		{"Float32PassWordFail", profileNameRandomFloatGenerator, typeFloat32, &operationSetFloat32, "hello", dsModels.Float32, true},
-		{"Float32PassOverflowFail", profileNameRandomFloatGenerator, typeFloat32, &operationSetFloat32, "440282346638528859811704183484516925440.0000000000000000", dsModels.Float32, true},
-		{"Float64Pass", profileNameRandomFloatGenerator, typeFloat64, &operationSetFloat64, "12.000", dsModels.Float64, false},
-		{"Float64PassNegativePass", profileNameRandomFloatGenerator, typeFloat64, &operationSetFloat64, "-12.000", dsModels.Float64, false},
-		{"Float64PassWordFail", profileNameRandomFloatGenerator, typeFloat64, &operationSetFloat64, "hello", dsModels.Float64, true},
+		{"DeviceResourceNotFound", mock.ProfileBool, typeBool, &contract.ResourceOperation{}, "", dsModels.Bool, true},
+		{"BoolTruePass", mock.ProfileBool, typeBool, &operationSetBool, "true", dsModels.Bool, false},
+		{"BoolFalsePass", mock.ProfileBool, typeBool, &operationSetBool, "false", dsModels.Bool, false},
+		{"BoolTrueFail", mock.ProfileBool, typeBool, &operationSetBool, "error", dsModels.Bool, true},
+		{"Int8Pass", mock.ProfileInt, typeInt8, &operationSetInt8, "12", dsModels.Int8, false},
+		{"Int8NegativePass", mock.ProfileInt, typeInt8, &operationSetInt8, "-12", dsModels.Int8, false},
+		{"Int8WordFail", mock.ProfileInt, typeInt8, &operationSetInt8, "hello", dsModels.Int8, true},
+		{"Int8OverflowFail", mock.ProfileInt, typeInt8, &operationSetInt8, "9999999999", dsModels.Int8, true},
+		{"Int16Pass", mock.ProfileInt, typeInt16, &operationSetInt16, "12", dsModels.Int16, false},
+		{"Int16NegativePass", mock.ProfileInt, typeInt16, &operationSetInt16, "-12", dsModels.Int16, false},
+		{"Int16WordFail", mock.ProfileInt, typeInt16, &operationSetInt16, "hello", dsModels.Int16, true},
+		{"Int16OverflowFail", mock.ProfileInt, typeInt16, &operationSetInt16, "9999999999", dsModels.Int16, true},
+		{"Int32Pass", mock.ProfileInt, typeInt32, &operationSetInt32, "12", dsModels.Int32, false},
+		{"Int32NegativePass", mock.ProfileInt, typeInt32, &operationSetInt32, "-12", dsModels.Int32, false},
+		{"Int32WordFail", mock.ProfileInt, typeInt32, &operationSetInt32, "hello", dsModels.Int32, true},
+		{"Int32OverflowFail", mock.ProfileInt, typeInt32, &operationSetInt32, "9999999999", dsModels.Int32, true},
+		{"Int64Pass", mock.ProfileInt, typeInt64, &operationSetInt64, "12", dsModels.Int64, false},
+		{"Int64NegativePass", mock.ProfileInt, typeInt64, &operationSetInt64, "-12", dsModels.Int64, false},
+		{"Int64WordFail", mock.ProfileInt, typeInt64, &operationSetInt64, "hello", dsModels.Int64, true},
+		{"Int64OverflowFail", mock.ProfileInt, typeInt64, &operationSetInt64, "99999999999999999999", dsModels.Int64, true},
+		{"Uint8Pass", mock.ProfileUint, typeUint8, &operationSetUint8, "12", dsModels.Uint8, false},
+		{"Uint8NegativeFail", mock.ProfileUint, typeUint8, &operationSetUint8, "-12", dsModels.Uint8, true},
+		{"Uint8WordFail", mock.ProfileUint, typeUint8, &operationSetUint8, "hello", dsModels.Uint8, true},
+		{"Uint8OverflowFail", mock.ProfileUint, typeUint8, &operationSetUint8, "9999999999", dsModels.Uint8, true},
+		{"Uint16Pass", mock.ProfileUint, typeUint16, &operationSetUint16, "12", dsModels.Uint16, false},
+		{"Uint16NegativeFail", mock.ProfileUint, typeUint16, &operationSetUint16, "-12", dsModels.Uint16, true},
+		{"Uint16WordFail", mock.ProfileUint, typeUint16, &operationSetUint16, "hello", dsModels.Uint16, true},
+		{"Uint16OverflowFail", mock.ProfileUint, typeUint16, &operationSetUint16, "9999999999", dsModels.Uint16, true},
+		{"Uint32Pass", mock.ProfileUint, typeUint32, &operationSetUint32, "12", dsModels.Uint32, false},
+		{"Uint32NegativeFail", mock.ProfileUint, typeUint32, &operationSetUint32, "-12", dsModels.Uint32, true},
+		{"Uint32WordFail", mock.ProfileUint, typeUint32, &operationSetUint32, "hello", dsModels.Uint32, true},
+		{"Uint32OverflowFail", mock.ProfileUint, typeUint32, &operationSetUint32, "9999999999", dsModels.Uint32, true},
+		{"Uint64Pass", mock.ProfileUint, typeUint64, &operationSetUint64, "12", dsModels.Uint64, false},
+		{"Uint64NegativeFail", mock.ProfileUint, typeUint64, &operationSetUint64, "-12", dsModels.Uint64, true},
+		{"Uint64WordFail", mock.ProfileUint, typeUint64, &operationSetUint64, "hello", dsModels.Uint64, true},
+		{"Uint64OverflowFail", mock.ProfileUint, typeUint64, &operationSetUint64, "99999999999999999999", dsModels.Uint64, true},
+		{"Float32Pass", mock.ProfileFloat, typeFloat32, &operationSetFloat32, "12.000", dsModels.Float32, false},
+		{"Float32PassNegativePass", mock.ProfileFloat, typeFloat32, &operationSetFloat32, "-12.000", dsModels.Float32, false},
+		{"Float32PassWordFail", mock.ProfileFloat, typeFloat32, &operationSetFloat32, "hello", dsModels.Float32, true},
+		{"Float32PassOverflowFail", mock.ProfileFloat, typeFloat32, &operationSetFloat32, "440282346638528859811704183484516925440.0000000000000000", dsModels.Float32, true},
+		{"Float64Pass", mock.ProfileFloat, typeFloat64, &operationSetFloat64, "12.000", dsModels.Float64, false},
+		{"Float64PassNegativePass", mock.ProfileFloat, typeFloat64, &operationSetFloat64, "-12.000", dsModels.Float64, false},
+		{"Float64PassWordFail", mock.ProfileFloat, typeFloat64, &operationSetFloat64, "hello", dsModels.Float64, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
@@ -241,69 +227,32 @@ func TestCreateCommandValueForParam(t *testing.T) {
 	}
 }
 
-func TestResourceOpSliceToMap(t *testing.T) {
-	var ops []contract.ResourceOperation
-	ops = append(ops, contract.ResourceOperation{Object: "first"})
-	ops = append(ops, contract.ResourceOperation{Object: "second"})
-	ops = append(ops, contract.ResourceOperation{Object: "third"})
-
-	mapped := roSliceToMap(ops)
-
-	if len(mapped) != 3 {
-		t.Errorf("unexpected map length. wanted 3, got %v", len(mapped))
-		return
-	}
-
-	tests := []struct {
-		testName  string
-		key       string
-		expectErr bool
-	}{
-		{"FindFirst", "first", false},
-		{"FindSecond", "second", false},
-		{"FindThird", "third", false},
-		{"NotFoundKey", "fourth", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.testName, func(t *testing.T) {
-			_, ok := mapped[tt.key]
-			if !tt.expectErr && !ok {
-				t.Errorf("expected entry %s not found in map.", tt.key)
-				return
-			}
-			if tt.expectErr && ok {
-				t.Errorf("test %s expected error not received.", tt.testName)
-				return
-			}
-		})
-	}
-}
-
 func TestParseWriteParams(t *testing.T) {
-	profileName := profileNameRandomIntegerGenerator
-	profile, ok := pc.ForName(profileName)
-	if !ok {
-		t.Errorf("device profile was not found, cannot continue")
-		return
-	}
-	roMap := roSliceToMap(profile.DeviceCommands[0].Set)
-	roMapTestMappingPass := roSliceToMap(profile.DeviceCommands[7].Set)
-	roMapTestMappingFail := roSliceToMap(profile.DeviceCommands[8].Set)
+	profileName := mock.ProfileInt
+
+	ros, _ := cache.Profiles().ResourceOperations(profileName, "RandomValue_Int8", common.SetCmdMethod)
+	rosTestDefaultParam, _ := cache.Profiles().ResourceOperations(profileName, "RandomValue_Int16", common.SetCmdMethod)
+	rosTestDefaultValue, _ := cache.Profiles().ResourceOperations(profileName, "RandomValue_Int32", common.SetCmdMethod)
+	rosTestMappingPass, _ := cache.Profiles().ResourceOperations(profileName, "ResourceTestMapping_Pass", common.SetCmdMethod)
+	rosTestMappingFail, _ := cache.Profiles().ResourceOperations(profileName, "ResourceTestMapping_Fail", common.SetCmdMethod)
+
 	tests := []struct {
 		testName    string
 		profile     string
-		resourceOps map[string]*contract.ResourceOperation
+		resourceOps []contract.ResourceOperation
 		params      string
 		expectErr   bool
 	}{
-		{"ValidWriteParam", profileName, roMap, `{"RandomValue_Int8":"123"}`, false},
-		{"InvalidWriteParam", profileName, roMap, `{"NotFound":"true"}`, true},
-		{"InvalidWriteParamType", profileName, roMap, `{"RandomValue_Int8":"abc"}`, true},
-		{"ValueMappingPass", profileName, roMapTestMappingPass, `{"ResourceTestMapping_Pass":"Pass"}`, false},
+		{"ValidWriteParam", profileName, ros, `{"RandomValue_Int8":"123"}`, false},
+		{"InvalidWriteParam", profileName, ros, `{"NotFound":"true"}`, true},
+		{"InvalidWriteParamType", profileName, ros, `{"RandomValue_Int8":"abc"}`, true},
+		{"ValueMappingPass", profileName, rosTestMappingPass, `{"ResourceTestMapping_Pass":"Pass"}`, false},
 		//The expectErr on the test below is false because parseWriteParams does NOT throw an error when there is no mapping value matched
-		{"ValueMappingFail", profileName, roMapTestMappingFail, `{"ResourceTestMapping_Fail":"123"}`, false},
-		{"ParseParamsFail", profileName, roMap, ``, true},
-		{"NoParams", profileName, roMap, `{}`, true},
+		{"ValueMappingFail", profileName, rosTestMappingFail, `{"ResourceTestMapping_Fail":"123"}`, false},
+		{"ParseParamsFail", profileName, ros, ``, true},
+		{"NoRequestParameter", profileName, ros, `{}`, true},
+		{"DefaultParameter", profileName, rosTestDefaultParam, `{"NotMatchedResourceName":"value"}`, false},
+		{"DefaultValue", profileName, rosTestDefaultValue, `{"NotMatchedResourceName":"value"}`, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
@@ -322,24 +271,25 @@ func TestParseWriteParams(t *testing.T) {
 
 func TestExecReadCmd(t *testing.T) {
 	tests := []struct {
-		testName  string
-		device    *contract.Device
-		cmd       string
-		expectErr bool
+		testName    string
+		device      *contract.Device
+		cmd         string
+		queryParams string
+		expectErr   bool
 	}{
-		{"CmdExecutionPass", &deviceIntegerGenerator, "RandomValue_Int8", false},
-		{"CmdNotFound", &deviceIntegerGenerator, "InexistentCmd", true},
-		{"ValueTransformFail", &deviceIntegerGenerator, "ResourceTestTransform_Fail", true},
-		{"ValueAssertionPass", &deviceIntegerGenerator, "ResourceTestAssertion_Pass", false},
+		{"CmdExecutionPass", &deviceIntegerGenerator, "RandomValue_Int8", "", false},
+		{"CmdNotFound", &deviceIntegerGenerator, "InexistentCmd", "", true},
+		{"ValueTransformFail", &deviceIntegerGenerator, "ResourceTestTransform_Fail", "", true},
+		{"ValueAssertionPass", &deviceIntegerGenerator, "ResourceTestAssertion_Pass", "", false},
 		//The expectErr on the test below is false because execReadCmd does NOT throw an error when assertion failed
-		{"ValueAssertionFail", &deviceIntegerGenerator, "ResourceTestAssertion_Fail", false},
-		{"ValueMappingPass", &deviceIntegerGenerator, "ResourceTestMapping_Pass", false},
+		{"ValueAssertionFail", &deviceIntegerGenerator, "ResourceTestAssertion_Fail", "", false},
+		{"ValueMappingPass", &deviceIntegerGenerator, "ResourceTestMapping_Pass", "", false},
 		//The expectErr on the test below is false because execReadCmd does NOT throw an error when there is no mapping value matched
-		{"ValueMappingFail", &deviceIntegerGenerator, "ResourceTestMapping_Fail", false},
-		{"NoDeviceResourceForOperation", &deviceIntegerGenerator, "NoDeviceResourceForOperation", true},
-		{"NoDeviceResourceForResult", &deviceIntegerGenerator, "NoDeviceResourceForResult", true},
-		{"MaxCmdOpsExceeded", &deviceIntegerGenerator, "Error", true},
-		{"ErrorOccurredInDriver", &deviceIntegerGenerator, "Error", true},
+		{"ValueMappingFail", &deviceIntegerGenerator, "ResourceTestMapping_Fail", "", false},
+		{"NoDeviceResourceForOperation", &deviceIntegerGenerator, "NoDeviceResourceForOperation", "", true},
+		{"NoDeviceResourceForResult", &deviceIntegerGenerator, "NoDeviceResourceForResult", "", true},
+		{"MaxCmdOpsExceeded", &deviceIntegerGenerator, "Error", "", true},
+		{"ErrorOccurredInDriver", &deviceIntegerGenerator, "Error", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
@@ -349,7 +299,7 @@ func TestExecReadCmd(t *testing.T) {
 					common.CurrentConfig.Device.MaxCmdOps = 128
 				}()
 			}
-			v, err := execReadCmd(tt.device, tt.cmd)
+			v, err := execReadCmd(tt.device, tt.cmd, tt.queryParams)
 			if !tt.expectErr && err != nil {
 				t.Errorf("%s expectErr:%v error:%v", tt.testName, tt.expectErr, err)
 				return
@@ -421,20 +371,22 @@ func TestExecWriteCmd(t *testing.T) {
 
 func TestCommandAllHandler(t *testing.T) {
 	tests := []struct {
-		testName  string
-		cmd       string
-		body      string
-		method    string
-		expectErr bool
+		testName    string
+		cmd         string
+		body        string
+		queryParams string
+		method      string
+		expectErr   bool
 	}{
-		{"PartOfReadCommandExecutionSuccess", "RandomValue_Uint8", "", methodGet, false},
-		{"PartOfReadCommandExecutionFail", "error", "", methodGet, true},
-		{"PartOfWriteCommandExecutionSuccess", "RandomValue_Uint8", `{"RandomValue_Uint8":"123"}`, methodSet, false},
-		{"PartOfWriteCommandExecutionFail", "error", `{"RandomValue_Uint8":"123"}`, methodSet, true},
+		{"PartOfReadCommandExecutionSuccess", "RandomValue_Uint8", "", "", methodGet, false},
+		{"PartOfReadCommandExecutionSuccessWithQueryParams", "RandomValue_Uint8", "", "test=test&test2=test2", methodGet, false},
+		{"PartOfReadCommandExecutionFail", "error", "", "", methodGet, true},
+		{"PartOfWriteCommandExecutionSuccess", "RandomValue_Uint8", `{"RandomValue_Uint8":"123"}`, "", methodSet, false},
+		{"PartOfWriteCommandExecutionFail", "error", `{"RandomValue_Uint8":"123"}`, "", methodSet, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			_, appErr := CommandAllHandler(tt.cmd, tt.body, tt.method)
+			_, appErr := CommandAllHandler(tt.cmd, tt.body, tt.method, tt.queryParams)
 			if !tt.expectErr && appErr != nil {
 				t.Errorf("%s expectErr:%v error:%v", tt.testName, tt.expectErr, appErr.Error())
 				return
@@ -449,16 +401,17 @@ func TestCommandAllHandler(t *testing.T) {
 
 func TestCommandHandler(t *testing.T) {
 	var (
-		varsFindDeviceByValidId     = map[string]string{"id": mock.RandomIntegerGeneratorDeviceId, "command": "RandomValue_Int8"}
+		varsFindDeviceByValidId     = map[string]string{"id": mock.ValidDeviceRandomUnsignedIntegerGenerator.Id, "command": "RandomValue_Uint8"}
 		varsFindDeviceByInvalidId   = map[string]string{"id": mock.InvalidDeviceId, "command": "RandomValue_Int8"}
-		varsFindDeviceByValidName   = map[string]string{"name": "Random-Integer-Generator01", "command": "RandomValue_Int8"}
+		varsFindDeviceByValidName   = map[string]string{"name": "Random-UnsignedInteger-Generator01", "command": "RandomValue_Uint8"}
 		varsFindDeviceByInvalidName = map[string]string{"name": "Random-Integer-Generator09", "command": "RandomValue_Int8"}
 		varsAdminStateLocked        = map[string]string{"name": "Random-Float-Generator01", "command": "RandomValue_Float32"}
+		varsOperatingStateDisabled  = map[string]string{"name": mock.OperatingStateDisabled.Name, "command": "testrandfloat32"}
 		varsProfileNotFound         = map[string]string{"name": "Random-Boolean-Generator01", "command": "error"}
 		varsCmdNotFound             = map[string]string{"name": "Random-Integer-Generator01", "command": "error"}
-		varsWriteInt8               = map[string]string{"name": "Random-Integer-Generator01", "command": "RandomValue_Int8"}
+		varsWriteUint8              = map[string]string{"name": "Random-UnsignedInteger-Generator01", "command": "RandomValue_Uint8"}
 	)
-	if err := cache.Devices().UpdateAdminState(mock.RandomFloatGeneratorDeviceId, contract.Locked); err != nil {
+	if err := cache.Devices().UpdateAdminState(mock.ValidDeviceRandomFloatGenerator.Id, contract.Locked); err != nil {
 		t.Errorf("Fail to update adminState, error: %v", err)
 	}
 	mock.ValidDeviceRandomBoolGenerator.Profile.Name = "error"
@@ -467,24 +420,26 @@ func TestCommandHandler(t *testing.T) {
 	}
 
 	tests := []struct {
-		testName  string
-		vars      map[string]string
-		body      string
-		method    string
-		expectErr bool
+		testName    string
+		vars        map[string]string
+		body        string
+		method      string
+		queryParams string
+		expectErr   bool
 	}{
-		{"ValidDeviceId", varsFindDeviceByValidId, "", methodGet, false},
-		{"InvalidDeviceId", varsFindDeviceByInvalidId, "", methodGet, true},
-		{"ValidDeviceName", varsFindDeviceByValidName, "", methodGet, false},
-		{"InvalidDeviceName", varsFindDeviceByInvalidName, "", methodGet, true},
-		{"AdminStateLocked", varsAdminStateLocked, "", methodGet, true},
-		{"ProfileNotFound", varsProfileNotFound, "", methodGet, true},
-		{"CmdNotFound", varsCmdNotFound, "", methodGet, true},
-		{"WriteCommand", varsWriteInt8, `{"RandomValue_Int8":"123"}`, methodSet, false},
+		{"ValidDeviceId", varsFindDeviceByValidId, "", methodGet, "test=test&test2=test2", false},
+		{"InvalidDeviceId", varsFindDeviceByInvalidId, "", methodGet, "", true},
+		{"ValidDeviceName", varsFindDeviceByValidName, "", methodGet, "", false},
+		{"InvalidDeviceName", varsFindDeviceByInvalidName, "", methodGet, "", true},
+		{"AdminStateLocked", varsAdminStateLocked, "", methodGet, "", true},
+		{"OperatingStateDisabled", varsOperatingStateDisabled, "", methodGet, "", true},
+		{"ProfileNotFound", varsProfileNotFound, "", methodGet, "", true},
+		{"CmdNotFound", varsCmdNotFound, "", methodGet, "", true},
+		{"WriteCommand", varsWriteUint8, `{"RandomValue_Uint8":"123"}`, methodSet, "", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.testName, func(t *testing.T) {
-			_, appErr := CommandHandler(tt.vars, tt.body, tt.method)
+			_, appErr := CommandHandler(tt.vars, tt.body, tt.method, tt.queryParams)
 			if !tt.expectErr && appErr != nil {
 				t.Errorf("%s expectErr:%v error:%v", tt.testName, tt.expectErr, appErr.Error())
 				return

@@ -8,7 +8,6 @@
 package startup
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -16,25 +15,27 @@ import (
 
 	"github.com/edgexfoundry/device-sdk-go"
 	dsModels "github.com/edgexfoundry/device-sdk-go/pkg/models"
+	flags "github.com/jessevdk/go-flags"
 )
 
-var (
-	confProfile string
-	confDir     string
-	useRegistry string
-)
+type Options struct {
+	UseRegistry   string `short:"r" long:"registry" description:"Indicates the service should use the registry and provide the registry url." optional:"true" optional-value:"LOAD_FROM_FILE"`
+	ConfProfile   string `short:"p" long:"profile" description:"Specify a profile other than default."`
+	ConfDir       string `short:"c" long:"confdir" description:"Specify an alternate configuration directory."`
+	OverwriteConf bool   `short:"o" long:"overwrite" description:"Overwrite configuration in the registry."`
+}
+
+var opts Options
 
 // Bootstrap starts the Device Service in a default way
 func Bootstrap(serviceName string, serviceVersion string, driver dsModels.ProtocolDriver) {
 	//flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError) // clean up existing flag defined by other code
-	flag.StringVar(&useRegistry, "registry", "", "Indicates the service should use the registry and provide the registry url.")
-	flag.StringVar(&useRegistry, "r", "", "Indicates the service should use registry and provide the registry path.")
-	flag.StringVar(&confProfile, "profile", "", "Specify a profile other than default.")
-	flag.StringVar(&confProfile, "p", "", "Specify a profile other than default.")
-	flag.StringVar(&confDir, "confdir", "", "Specify an alternate configuration directory.")
-	flag.StringVar(&confDir, "c", "", "Specify an alternate configuration directory.")
-	flag.Parse()
+	_, err := flags.Parse(&opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	}
 
+	device.SetOverwriteConfig(opts.OverwriteConf)
 	if err := startService(serviceName, serviceVersion, driver); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -42,7 +43,7 @@ func Bootstrap(serviceName string, serviceVersion string, driver dsModels.Protoc
 }
 
 func startService(serviceName string, serviceVersion string, driver dsModels.ProtocolDriver) error {
-	s, err := device.NewService(serviceName, serviceVersion, confProfile, confDir, useRegistry, driver)
+	s, err := device.NewService(serviceName, serviceVersion, opts.ConfProfile, opts.ConfDir, opts.UseRegistry, driver)
 	if err != nil {
 		return err
 	}

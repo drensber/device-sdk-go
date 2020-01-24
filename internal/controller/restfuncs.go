@@ -36,6 +36,15 @@ func statusFunc(w http.ResponseWriter, req *http.Request) {
 	io.WriteString(w, result)
 }
 
+func versionFunc(w http.ResponseWriter, req *http.Request) {
+	res := struct {
+		Version string `json:"version"`
+	}{handler.VersionHandler()}
+	w.Header().Add(clients.ContentType, clients.ContentTypeJSON)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(&res)
+}
+
 func discoveryFunc(w http.ResponseWriter, req *http.Request) {
 	if checkServiceLocked(w, req) {
 		return
@@ -96,7 +105,7 @@ func commandFunc(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	event, appErr := handler.CommandHandler(vars, body, req.Method)
+	event, appErr := handler.CommandHandler(vars, body, req.Method, req.URL.RawQuery)
 
 	if appErr != nil {
 		http.Error(w, fmt.Sprintf("%s %s", appErr.Message(), req.URL.Path), appErr.Code())
@@ -140,7 +149,7 @@ func commandAllFunc(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	events, appErr := handler.CommandAllHandler(vars[common.CommandVar], body, req.Method)
+	events, appErr := handler.CommandAllHandler(vars[common.CommandVar], body, req.Method, req.URL.RawQuery)
 	if appErr != nil {
 		http.Error(w, appErr.Message(), appErr.Code())
 	} else if len(events) > 0 {
