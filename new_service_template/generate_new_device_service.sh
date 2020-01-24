@@ -186,7 +186,9 @@ cp ${TEMPLATE_GO_MOD} ${NEW_GO_MOD}
 sed -i "s/<<<DS_NAME>>>/${DS_NAME}/g" ${NEW_GO_MOD}
 
 #Copy device profile
-cp ${EXAMPLE_DEVICE_PROFILE} ${NEW_CMD_RES_DIR}/${DS_NAME}-device-profile.yaml
+NEW_DEVICE_PROFILE_FILE=${NEW_CMD_RES_DIR}/${DS_NAME}-device-profile.yaml
+cp ${EXAMPLE_DEVICE_PROFILE} ${NEW_DEVICE_PROFILE_FILE}
+sed -i "s/Simple-Device/${DS_CAMEL_CASE_NAME}-Device/g" ${NEW_DEVICE_PROFILE_FILE}
 
 echo "done"
 echo
